@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-dark-900 text-white font-mono;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+  }
+  
+  .btn-secondary {
+    @apply bg-dark-700 hover:bg-dark-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+  }
+  
+  .card {
+    @apply bg-dark-800 border border-dark-700 rounded-lg p-4;
+  }
+  
+  .input-field {
+    @apply bg-dark-700 border border-dark-600 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+  }
+
+  /* Resizable Layout Styles */
+  .resize-handle {
+    @apply bg-dark-600 hover:bg-primary-500 cursor-col-resize transition-colors duration-200 relative;
+    width: 4px;
+  }
+
+  .resize-handle:hover {
+    @apply bg-primary-500;
+  }
+
+  .resize-handle::before {
+    content: '';
+    @apply absolute inset-y-0 -left-1 -right-1;
+  }
+
+  /* Prevent text selection during drag */
+  .dragging {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+  }
+
+  /* Smooth transitions for layout changes */
+  .layout-transition {
+    transition: grid-template-columns 0.2s ease-in-out;
+  }
+} 

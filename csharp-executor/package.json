@@ -1,0 +1,13 @@
+{
+  "name": "csharp-executor",
+  "version": "1.0.0",
+  "description": "C# Code Execution Service",
+  "main": "csharp-executor.js",
+  "scripts": {
+    "start": "node csharp-executor.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "body-parser": "^1.20.2"
+  }
+} 

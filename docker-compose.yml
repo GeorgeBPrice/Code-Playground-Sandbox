@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  # SQL Server for the IT Store Sales Database
+  sqlserver-db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sqlserver-it-store
+    environment:
+      ACCEPT_EULA: Y
+      SA_PASSWORD: Playground123!
+      MSSQL_PID: Developer
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+      - ./sql-init:/sql-init
+    ports:
+      - "1433:1433"
+    restart: unless-stopped
+    networks:
+      - playground-network
+    command: >
+      bash -c "
+        /opt/mssql/bin/sqlservr &
+        sleep 30
+        /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P Playground123! -i /sql-init/01-init-database.sql
+        wait
+      "
+
+  # Backend API Service
+  backend-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend-api
+    ports:
+      - "5445:5445"
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - sqlserver-db
+    restart: unless-stopped
+    networks:
+      - playground-network
+
+  # C# Execution Service
+  csharp-executor:
+    image: mcr.microsoft.com/dotnet/sdk:8.0
+    container_name: csharp-executor
+    working_dir: /app
+    volumes:
+      - ./code:/app/code
+    command: ["sh", "-c", "sleep infinity"]
+    environment:
+      - DOTNET_ENVIRONMENT=Production
+    restart: unless-stopped
+    networks:
+      - playground-network
+    depends_on:
+      - sqlserver-db
+
+  # C# Executor API Service
+  csharp-executor-api:
+    build:
+      context: ./csharp-executor
+      dockerfile: Dockerfile
+    container_name: csharp-executor-api
+    ports:
+      - "3002:3002"
+    volumes:
+      - ./code:/app/code
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    networks:
+      - playground-network
+
+  # Frontend Web Application
+  frontend-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: frontend-app
+    ports:
+      - "80:80"
+    depends_on:
+      - backend-api
+    restart: unless-stopped
+    networks:
+      - playground-network
+
+volumes:
+  sqlserver-data:
+    driver: local
+
+networks:
+  playground-network:
+    driver: bridge 
