@@ -20,7 +20,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          '/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "$${SA_PASSWORD}"-Q ''SELECT 1'' -t 1',
+          '/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "$${SA_PASSWORD}" -Q "SELECT 1" -t 1',
         ]
       interval: 10s
       timeout: 10s
@@ -52,7 +52,8 @@ services:
     ports:
       - "5445:5445"
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
+      - DB_PASSWORD=${DB_PASSWORD}
     volumes:
       - ./code:/app/code
     depends_on:

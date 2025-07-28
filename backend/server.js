@@ -13,7 +13,7 @@ app.use(bodyParser.json());
 // SQL Server configuration
 const sqlConfig = {
   user: 'sa',
-  password: 'Playground123!',
+  password: process.env.DB_PASSWORD,
   database: 'master', // Connect to master first, then switch to it_store_sales
   server: 'sqlserver-db',
   port: 1433,
