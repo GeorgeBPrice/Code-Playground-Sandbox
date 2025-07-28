@@ -1,0 +1,12 @@
+{
+    "name": "database-migrations",
+    "version": "1.0.0",
+    "description": "Database migration system for Code Playground",
+    "main": "migration-runner.js",
+    "dependencies": {
+      "mssql": "^9.1.1"
+    },
+    "engines": {
+      "node": ">=18.0.0"
+    }
+  }

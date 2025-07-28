@@ -51,8 +51,6 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
         // Calculate position for action buttons (aligned with selection)
         const position = editor.getPosition();
         const coords = editor.getScrolledVisiblePosition(position);
-        const editorElement = editor.getDomNode();
-        const editorRect = editorElement.getBoundingClientRect();
         
         setActionButtonPosition({
           top: coords.top - 5, // This aligns the select action buttons with the selected text
@@ -116,8 +114,9 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   };
 
   return (
+    // Outer container with border and visual styling
     <div className="border border-dark-700 rounded-lg overflow-hidden relative">
-      {/* Clear Button */}
+      {/* Clear Button - positioned relative to outer container */}
       <div className="absolute top-2 right-5 z-10">
         <button
           onClick={handleClearCode}
@@ -128,7 +127,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
         </button>
       </div>
 
-      {/* Action Buttons */}
+      {/* Action Buttons - positioned relative to editor container */}
       {showActionButtons && (language === 'javascript' || language === 'sql') && (
         <div 
           className="absolute z-20 flex gap-1 bg-dark-800 border border-dark-600 rounded-md p-1 shadow-lg"
@@ -168,47 +167,50 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
         </div>
       )}
 
-      <Editor
-        height={height}
-        language={getMonacoLanguage(language)}
-        value={value}
-        onChange={(value) => onChange(value || '')}
-        onMount={handleEditorDidMount}
-        theme="vs-dark"
-        options={{
-          minimap: { enabled: false },
-          fontSize: 14,
-          fontFamily: 'JetBrains Mono, monospace',
-          lineNumbers: 'on',
-          roundedSelection: false,
-          scrollBeyondLastLine: false,
-          automaticLayout: true,
-          wordWrap: 'on',
-          tabSize: 2,
-          insertSpaces: true,
-          detectIndentation: false,
-          trimAutoWhitespace: true,
-          largeFileOptimizations: false,
-          suggest: {
-            showKeywords: true,
-            showSnippets: true,
-            showClasses: true,
-            showFunctions: true,
-            showVariables: true,
-            showConstants: true,
-            showEnums: true,
-            showEnumMembers: true,
-            showColors: true,
-            showFiles: true,
-            showReferences: true,
-            showFolders: true,
-            showTypeParameters: true,
-            showWords: true,
-            showUsers: true,
-            showIssues: true,
-          },
-        }}
-      />
+      {/* Monaco Editor - no border, no padding, direct positioning */}
+      <div className="relative">
+        <Editor
+          height={height}
+          language={getMonacoLanguage(language)}
+          value={value}
+          onChange={(value) => onChange(value || '')}
+          onMount={handleEditorDidMount}
+          theme="vs-dark"
+          options={{
+            minimap: { enabled: false },
+            fontSize: 14,
+            fontFamily: 'JetBrains Mono, monospace',
+            lineNumbers: 'on',
+            roundedSelection: false,
+            scrollBeyondLastLine: false,
+            automaticLayout: true,
+            wordWrap: 'on',
+            tabSize: 2,
+            insertSpaces: true,
+            detectIndentation: false,
+            trimAutoWhitespace: true,
+            largeFileOptimizations: false,
+            suggest: {
+              showKeywords: true,
+              showSnippets: true,
+              showClasses: true,
+              showFunctions: true,
+              showVariables: true,
+              showConstants: true,
+              showEnums: true,
+              showEnumMembers: true,
+              showColors: true,
+              showFiles: true,
+              showReferences: true,
+              showFolders: true,
+              showTypeParameters: true,
+              showWords: true,
+              showUsers: true,
+              showIssues: true,
+            },
+          }}
+        />
+      </div>
     </div>
   );
 };
