@@ -1,13 +1,14 @@
 # Code Playground Sandbox
 
-A web-based code playground for practicing multiple programming languages including JavaScript, C#, and SQL. Built with React, TypeScript, Monaco Editor, and Docker integration for sandboxed code execution.
+**(NOT FOR PRODUCTION ENVIRONMENTS)** A web-based code playground for practicing multiple programming languages including JavaScript, C#, and SQL. Built with React, TypeScript, Monaco Editor, and Docker integration for sandboxed code execution with optimized performance. A version for production will come
 
 ## Features
 
 - Multi-language support: JavaScript, C#, and SQL (SQL Server)
 - Monaco Editor: Professional code editor with IntelliSense and error detection
 - Real-time console output: See execution results and errors instantly
-- Sandboxed code execution: Each language runs in its own Docker container for security
+- High-performance code execution: Optimized C# compilation with assembly caching
+- Dedicated database migration system: Version-controlled schema management
 - Modern UI: Dark theme with Tailwind CSS
 - File operations: Upload, download, and reset code
 - Responsive design: Works on desktop and mobile devices
@@ -23,8 +24,9 @@ A web-based code playground for practicing multiple programming languages includ
 - Editor: Monaco Editor
 - Styling: Tailwind CSS
 - Icons: Lucide React
-- Backend: Node.js (Express), Docker containers for code execution
+- Backend: Node.js (Express) with integrated .NET SDK for C# compilation
 - Database: SQL Server 2022 (containerized)
+- Migrations: Dedicated Node.js migration container with version tracking
 
 ## Getting Started
 
@@ -40,19 +42,42 @@ A web-based code playground for practicing multiple programming languages includ
    ```bash
    git clone https://github.com/GeorgeBPrice/Code-Playground-Sandbox.git
    ```
-2. In the root folder, start all services (frontend, backend, SQL Server, code runners):
+
+2. Start all services (SQL Server, migrations, backend, frontend):
    ```bash
    docker-compose up --build
    ```
-3. Allowing some time, Open your browser and navigate to:
+
+3. The system will automatically:
+   - Start SQL Server and wait for it to be healthy
+   - Run database migrations to create the schema
+   - Start the backend API with C# compilation support
+   - Start the frontend web application
+
+4. Open your browser and navigate to:
    ```
    http://localhost:80
    ```
 
-4. If there are issues, check docker is correctly deployed, check all containers are running. **OR use Docker Desktop to view deployment**
-   ```
-   docker ps
-   ```
+### Database Migrations
+
+The system uses a dedicated migration container that runs automatically during startup. The migration system:
+
+- Creates the `it_store_sales` database if it doesn't exist
+- Runs versioned SQL migration scripts from `migrations/sql/`
+- Tracks applied migrations in a `schema_migrations` table
+- Only runs new migrations on subsequent startups
+
+To manually run migrations:
+```bash
+# Run only the migration container
+docker-compose up --build db-migrations
+
+# Or run migrations in isolation
+docker-compose run --rm db-migrations
+```
+
+Migration files are located in `migrations/sql/` and should follow the naming pattern: `YYYYMMDDHHMM-description.sql`
 
 
 ### Local Development (VSCode or Terminal)
@@ -73,18 +98,31 @@ A web-based code playground for practicing multiple programming languages includ
 ## Project Structure
 
 ```
-src/
-├── components/          # React components
-│   ├── CodeEditor.tsx   # Monaco editor wrapper
-│   ├── Console.tsx      # Console output display
-│   └── LanguageSelector.tsx # Language selection UI
-├── config/
-│   └── languages.ts     # Language configurations
-├── services/
-│   └── codeExecution.ts # Code execution service
-├── types/
-│   └── index.ts         # TypeScript type definitions
-└── App.tsx              # Main application component
+├── backend/                    # Backend API server
+│   ├── server.js              # Express server with integrated C# execution
+│   ├── Dockerfile             # Backend container with .NET SDK
+│   └── package.json           # Backend dependencies
+├── migrations/                 # Database migration system
+│   ├── migration-runner.js    # Migration execution engine
+│   ├── Dockerfile             # Migration container
+│   ├── package.json           # Migration dependencies
+│   └── sql/                   # Versioned migration scripts
+│       └── *.sql              # Migration files (YYYYMMDDHHMM-description.sql)
+├── src/                       # Frontend React application
+│   ├── components/            # React components
+│   │   ├── CodeEditor.tsx     # Monaco editor with performance optimizations
+│   │   ├── Console.tsx        # Console output display
+│   │   └── LanguageSelector.tsx # Language selection UI
+│   ├── config/
+│   │   └── languages.ts       # Language configurations
+│   ├── services/
+│   │   ├── api.ts             # API communication layer
+│   │   └── codeExecution.ts   # Code execution service
+│   ├── types/
+│   │   └── index.ts           # TypeScript type definitions
+│   └── App.tsx                # Main application component
+├── docker-compose.yml         # Container orchestration
+└── README.md
 ```
 
 ## Language Support
@@ -95,10 +133,12 @@ src/
 - Array, object, and function examples
 
 ### C#
-- .NET 8.0 runtime
+- .NET 8.0 runtime with optimized compilation
+- Assembly caching for fast repeated execution (~100ms vs 2-3 seconds)
 - Console application support
 - LINQ operations
 - Object-oriented programming examples
+- Integrated compilation in backend (no separate containers)
 
 ### SQL
 - SQL Server 2022 with IT store sales database
@@ -118,6 +158,57 @@ src/
 6. Use the slider to adjust the width of the console and editor
 7. Use code block actions (run, copy, comment, delete) on selected code
 
+## Debugging
+
+If you encounter issues with the application:
+
+### Container Status
+Check that all containers are running properly:
+```bash
+docker ps
+```
+
+You should see containers for:
+- `sqlserver-it-store` (SQL Server database)
+- `backend-api` (Backend API with C# support)
+- `frontend-app` (React frontend)
+- `db-migrations` (should exit after successful migration)
+
+### Manual Container Startup
+If the automatic startup fails, you can start containers manually:
+
+```bash
+# Start SQL Server first
+docker-compose up -d sqlserver-db
+
+# Run migrations manually
+docker-compose up db-migrations
+
+# Start backend manually
+docker-compose up -d backend-api
+
+# Start frontend manually  
+docker-compose up -d frontend-app
+```
+
+### Common Issues
+- **Migration failures**: Check `docker logs db-migrations` for SQL syntax errors
+- **Backend connection issues**: Ensure SQL Server is healthy before backend starts
+- **Frontend not loading**: Verify backend is running on port 5445
+- **C# compilation errors**: Check that .NET SDK is properly installed in backend container
+
+### Logs
+View container logs for troubleshooting:
+```bash
+# View all logs
+docker-compose logs
+
+# View specific container logs
+docker logs backend-api
+docker logs db-migrations
+docker logs sqlserver-it-store
+```
+
 ## Development Phases
 
 ### Phase 1: Core Features (Completed)
@@ -134,6 +225,7 @@ src/
 - Fixed console output height
 
 ### Phase 2: Advanced Features (Planned)
+- Production level security (the works!)
 - Support for additional languages and Frameworks (TypeScript, Python, React, Java, Go, yaml, PHP, etc.)
 - Code sharing and templates
 - Advanced debugging tools (breakpoints, step-through)

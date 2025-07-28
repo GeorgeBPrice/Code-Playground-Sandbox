@@ -13,7 +13,7 @@ app.use(bodyParser.json());
 // SQL Server configuration
 const sqlConfig = {
   user: 'sa',
-  password: 'Playground123!',
+  password: process.env.DB_PASSWORD,
   database: 'master', // Connect to master first, then switch to it_store_sales
   server: 'sqlserver-db',
   port: 1433,
@@ -159,7 +159,60 @@ app.post('/api/execute-javascript', async (req, res) => {
   }
 });
 
-// Execute C# code
+// Cache management for C# assemblies
+const CACHE_CLEANUP_INTERVAL = 60 * 60 * 1000; // 1 hour
+const CACHE_MAX_AGE = 24 * 60 * 60 * 1000; // 24 hours
+const CACHE_MAX_SIZE = 100; // Maximum cached assemblies
+
+function cleanupCsharpCache() {
+  const { exec } = require('child_process');
+  const fs = require('fs');
+  const path = require('path');
+  
+  const executionDir = path.join(__dirname, '../code/csharp-optimized');
+  
+  if (!fs.existsSync(executionDir)) return;
+  
+  try {
+    const files = fs.readdirSync(executionDir)
+      .filter(file => file.endsWith('.dll'))
+      .map(file => {
+        const filePath = path.join(executionDir, file);
+        const stats = fs.statSync(filePath);
+        return { file, path: filePath, mtime: stats.mtime };
+      })
+      .sort((a, b) => b.mtime - a.mtime); // Sort by newest first
+    
+    const now = Date.now();
+    let cleaned = 0;
+    
+    // Remove old files or excess files
+    files.forEach((fileInfo, index) => {
+      const age = now - fileInfo.mtime.getTime();
+      if (age > CACHE_MAX_AGE || index >= CACHE_MAX_SIZE) {
+        try {
+          fs.unlinkSync(fileInfo.path);
+          cleaned++;
+        } catch (error) {
+          console.log('Cache cleanup warning:', error.message);
+        }
+      }
+    });
+    
+    if (cleaned > 0) {
+      console.log(`C# cache cleanup: removed ${cleaned} old assemblies`);
+    }
+  } catch (error) {
+    console.log('Cache cleanup error:', error.message);
+  }
+}
+
+// Start cache cleanup timer
+setInterval(cleanupCsharpCache, CACHE_CLEANUP_INTERVAL);
+
+// Enhanced C# execution with compilation caching
+const csharpCache = new Map(); // Cache compiled assemblies
+
 app.post('/api/execute-csharp', async (req, res) => {
   try {
     const { code } = req.body;
@@ -168,64 +221,74 @@ app.post('/api/execute-csharp', async (req, res) => {
       return res.status(400).json({ error: 'Code is required' });
     }
 
-    // Call the C# executor service
-    const fetch = require('node-fetch');
+    const { exec } = require('child_process');
+    const fs = require('fs');
+    const path = require('path');
+    const crypto = require('crypto');
     
-    try {
-      const response = await fetch('http://csharp-executor-api:3002/execute', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ code })
+    // Create hash of code for caching
+    const codeHash = crypto.createHash('md5').update(code).digest('hex');
+    
+    // Use optimized execution directory
+    const executionDir = path.join(__dirname, '../code/csharp-optimized');
+    const assemblyPath = path.join(executionDir, `program-${codeHash}.dll`);
+    
+    // Ensure directory exists
+    if (!fs.existsSync(executionDir)) {
+      fs.mkdirSync(executionDir, { recursive: true });
+    }
+    
+    // Check if we have a cached compiled version
+    const isCached = fs.existsSync(assemblyPath);
+    
+    if (isCached) {
+      // Execute pre-compiled assembly (very fast - ~100ms)
+      exec(`cd ${executionDir} && dotnet exec program-${codeHash}.dll`, 
+        { timeout: 10000 }, (error, stdout, stderr) => {
+        handleExecutionResult(error, stdout, stderr, res, true);
       });
+    } else {
+      // First time compilation
+      const csprojContent = `<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>program-${codeHash}</AssemblyName>
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
+</Project>`;
       
-      const result = await response.json();
-      res.json(result);
+      const projectDir = path.join(executionDir, `temp-${codeHash}`);
+      fs.mkdirSync(projectDir, { recursive: true });
       
-    } catch (executorError) {
-      console.error('C# Executor service error:', executorError);
+      fs.writeFileSync(path.join(projectDir, 'Program.csproj'), csprojContent);
+      fs.writeFileSync(path.join(projectDir, 'Program.cs'), code);
       
-      // Fallback to simulated execution if executor service is not available
-      const messages = [
-        {
-          type: 'info',
-          message: 'C# execution would run in a dedicated .NET container',
-          timestamp: new Date()
+      // Compile and move to cache
+      exec(`cd ${projectDir} && dotnet publish -c Release -o ${executionDir}`, 
+        { timeout: 15000 }, (buildError, buildStdout, buildStderr) => {
+        
+        // Cleanup temp project directory
+        try {
+          fs.rmSync(projectDir, { recursive: true, force: true });
+        } catch (cleanupError) {
+          console.log('Cleanup warning:', cleanupError.message);
         }
-      ];
-      
-      // Simulate some C# output based on the code
-      if (code.includes('Console.WriteLine')) {
-        messages.push({
-          type: 'log',
-          message: 'Hello from C#!',
-          timestamp: new Date()
-        });
-      }
-      
-      if (code.includes('Enumerable.Range') || code.includes('Sum()')) {
-        messages.push({
-          type: 'log',
-          message: 'Original list: [1, 2, 3, 4, 5]',
-          timestamp: new Date()
-        });
-        messages.push({
-          type: 'log',
-          message: 'Sum: 15',
-          timestamp: new Date()
-        });
-      }
-      
-      messages.push({
-        type: 'log',
-        message: 'C# code processed successfully (simulated)',
-        timestamp: new Date()
-      });
-      
-      res.json({
-        success: true,
-        messages: messages
+        
+        if (buildError) {
+          const messages = [{
+            type: 'error',
+            message: `C# compilation error: ${buildStderr || buildError.message}`,
+            timestamp: new Date()
+          }];
+          res.json({ success: false, messages });
+        } else {
+          // Execute the newly compiled assembly
+          exec(`cd ${executionDir} && dotnet exec program-${codeHash}.dll`, 
+            { timeout: 10000 }, (execError, execStdout, execStderr) => {
+            handleExecutionResult(execError, execStdout, execStderr, res, false);
+          });
+        }
       });
     }
     
@@ -237,6 +300,42 @@ app.post('/api/execute-csharp', async (req, res) => {
     });
   }
 });
+
+// Helper function to handle execution results
+function handleExecutionResult(error, stdout, stderr, res, fromCache) {
+  const messages = [];
+  
+  if (error) {
+    messages.push({
+      type: 'error',
+      message: `C# execution error: ${stderr || error.message}`,
+      timestamp: new Date()
+    });
+  } else {
+    messages.push({
+      type: 'info',
+      message: `C# code executed successfully ${fromCache ? '(cached)' : '(compiled)'}`,
+      timestamp: new Date()
+    });
+    
+    if (stdout) {
+      stdout.split('\n').forEach(line => {
+        if (line.trim()) {
+          messages.push({
+            type: 'log',
+            message: line.trim(),
+            timestamp: new Date()
+          });
+        }
+      });
+    }
+  }
+  
+  res.json({
+    success: !error,
+    messages: messages
+  });
+}
 
 // Get database schema
 app.get('/api/schema', async (req, res) => {
@@ -342,7 +441,20 @@ app.get('/api/schema', async (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`Backend server running on port ${PORT}`);
-  console.log(`Health check: http://localhost:${PORT}/health`);
-}); 
+async function startServer() {
+  console.log('🚀 Starting Code Playground Backend...');
+  
+  // Start the HTTP server
+  app.listen(PORT, () => {
+    console.log(`✅ Backend server running on port ${PORT}`);
+    console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+    console.log(`🔗 Frontend: http://localhost:80`);
+    console.log('📊 Database migrations handled by dedicated container');
+  });
+}
+
+// Start the server
+startServer().catch(error => {
+  console.error('❌ Failed to start server:', error);
+  process.exit(1);
+});

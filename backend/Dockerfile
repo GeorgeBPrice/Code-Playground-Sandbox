@@ -1,18 +1,26 @@
-FROM node:18-alpine
+# Use Node.js with .NET SDK for C# compilation
+FROM mcr.microsoft.com/dotnet/sdk:8.0
 
+# Install Node.js, npm, and curl for health checks
+RUN apt-get update && apt-get install -y nodejs npm curl && apt-get clean
+
+# Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy package files from backend directory
+COPY backend/package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN npm install
 
-# Copy source code
-COPY . .
+# Copy backend source code
+COPY backend/ .
+
+# Create code directory for C# execution
+RUN mkdir -p /app/code
 
 # Expose port
-EXPOSE 3001
+EXPOSE 5445
 
-# Start the application
-CMD ["npm", "start"] 
+# Start the backend server
+CMD ["node", "server.js"] 
