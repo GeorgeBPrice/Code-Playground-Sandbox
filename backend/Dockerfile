@@ -1,8 +1,8 @@
 # Use Node.js with .NET SDK for C# compilation
 FROM mcr.microsoft.com/dotnet/sdk:8.0
 
-# Install Node.js and npm
-RUN apt-get update && apt-get install -y nodejs npm && apt-get clean
+# Install Node.js, npm, and curl for health checks
+RUN apt-get update && apt-get install -y nodejs npm curl && apt-get clean
 
 # Set working directory
 WORKDIR /app

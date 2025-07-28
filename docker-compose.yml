@@ -16,16 +16,7 @@ services:
     restart: unless-stopped
     networks:
       - playground-network
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          '/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "$${SA_PASSWORD}" -Q "SELECT 1" -t 1',
-        ]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-      start_period: 30s
+
 
   # Database Migration Service
   db-migrations:
@@ -39,8 +30,7 @@ services:
     networks:
       - playground-network
     depends_on:
-      sqlserver-db:
-        condition: service_healthy
+      - sqlserver-db
     restart: "no" # Run once and exit
 
   # Backend API Service (now includes C# execution)
@@ -57,11 +47,16 @@ services:
     volumes:
       - ./code:/app/code
     depends_on:
-      db-migrations:
-        condition: service_completed_successfully
+      - sqlserver-db
     restart: unless-stopped
     networks:
       - playground-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5445/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   # Frontend Web Application
   frontend-app:
@@ -72,7 +67,8 @@ services:
     ports:
       - "80:80"
     depends_on:
-      - backend-api
+      backend-api:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - playground-network
