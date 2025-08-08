@@ -2,6 +2,9 @@
 
 **(NOT FOR PRODUCTION ENVIRONMENTS)** A web-based code playground for practicing multiple programming languages including JavaScript, C#, and SQL. Built with React, TypeScript, Monaco Editor, and Docker integration for sandboxed code execution with optimized performance. A version for production will come
 
+<img width="1518" height="1191" alt="image" src="https://github.com/user-attachments/assets/bd3fb6e1-3e72-4cda-b1fd-83f05f821903" />
+
+
 ## Features
 
 - Multi-language support: JavaScript, C#, and SQL (SQL Server)
